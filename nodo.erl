@@ -1,7 +1,7 @@
 -module(nodo).
 -export([init/0, read_from_shared_folder/0, pprint/1, download_file/2, register/0, shell/0, comm_handler/1]).
 -include("config.hrl").
-
+-include("gen_header_tcp.hrl").
 % USAGE:
 % c(server).
 % server:server().

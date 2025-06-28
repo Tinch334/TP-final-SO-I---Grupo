@@ -1,0 +1,6 @@
+-define(PORT, 12345).
+-define(OK_CODE, 101).
+-define(NOTFOUND_CODE, 112).
+-define(CHUNK_CODE, 111).
+-define(MAX_SINGLE_FILE_SIZE, 1024 * 4).
+-define(NODE_NAME_LENGTH, 4).
