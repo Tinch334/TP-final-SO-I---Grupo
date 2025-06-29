@@ -7,8 +7,8 @@
 %Section 4.2, created as general library for common use.
 search_request(Filename) ->
     CollectorID = spawn(?MODULE, collector, [[]]),
-    create_handlers(CollectorID, Filename, nodo:get_nodes_from_registry()),%Get node list
-    timer:sleep(?SEARCH_REQUEST_TIMEOUT), %Wait for TCP timeout.
+    create_handlers(CollectorID, Filename, utils:get_nodes_from_registry()),%Get node list
+    timer:sleep(?SEARCH_REQUEST_TIMEOUT + 500), %Wait for TCP timeout.
     CollectorID ! {?COLLECTOR_GET, self()},
     receive
         {collectorRes, Lst} -> Lst
@@ -23,18 +23,18 @@ collector(Lst) ->
 
 create_handlers(_, _, []) -> [];
 create_handlers(CId, Filename, [Node | NodeLst]) ->
-    spawn(?MODULE, search_handler, [CId, Filename, Node]),
+    timer:kill_after(?SEARCH_REQUEST_TIMEOUT, spawn(?MODULE, search_handler, [CId, Filename, Node])),
     create_handlers(CId, Filename, NodeLst).
 
 search_handler(CId, Filename, Node) ->
-    case gen_tcp:connect(Node#nodeInfo.ip, Node#nodeInfo.port, [inet], ?SEARCH_REQUEST_TIMEOUT) of
+    case gen_tcp:connect(Node#nodeInfo.ip, Node#nodeInfo.port, [inet]) of
         {ok, Socket} ->
             gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", myid, " ", Filename])),
+            search_handler_recv(CId),
             gen_tcp:close(Socket);
         {error, Reason} ->
             io:format("An error occurred creating a TCP file request socket, with error: ~w~n", [Reason])
-    end,
-    search_handler_recv(CId).
+    end.
 
 search_handler_recv(CId) ->
     receive

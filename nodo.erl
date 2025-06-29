@@ -1,5 +1,5 @@
 -module(nodo).
--export([init/0, read_from_shared_folder/0, pprint/1, shell/0, comm_handler/1, get_node_value/0, name_holder_loop/1, name_generator/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1]).
+-export([init/0, read_from_shared_folder/0, pprint/1, shell/0, comm_handler/1, get_node_value/0, name_holder_loop/1, name_generator/1]).
 -include("config.hrl").
 -include("gen_header.hrl").
 
@@ -107,6 +107,8 @@ comm_handler(Input) ->
                             io:format("Error: archivo no encontrado en el server~n");
                         {error, empty_file} ->
                             io:format("Error: el archivo ~s esta vacio~n", [FileName]);
+                        {error, Reason} ->
+                            io:format("Error: Ocurrio un error inesperado: ~w~n", [Reason]);
                         ok ->
                             gen_tcp:close(ConnSock),
                             io:format("Archivo descargado! ~n")
@@ -117,37 +119,6 @@ comm_handler(Input) ->
         _ ->
             io:format("Comando desconocido. 'help' para ver los comandos disponibles y su uso. ~n")
     end.
-
-
-% Add data about discovered nodes to the registry file.
-add_node_to_registry(Ip, Id, Port) ->
-    Line = io_lib:format("~s,~s,~s~n", [Ip, Id, Port]),
-    file:write_file(?REG_PATH, Line, [append]). % append it at the end of the file (no overwriting)
-
-get_nodes_from_registry() ->
-    case file:read_file(?REG_PATH) of
-        {ok, Data} ->
-            StringList = lists:map(fun(L) -> binary_to_list(L) end, binary:split(Data, [<<"\r\n">>], [global])),
-            lists:map(fun(E) -> make_node_record(E) end, StringList);
-        {error, _} -> []
-    end.
-
-make_node_record(NodeString) ->
-    Split = string:tokens(NodeString, ","),
-    #nodeInfo{ip = lists:nth(1, Split), id = lists:nth(2, Split), port = lists:nth(3, Split)}.
-
-
-%readlines(Filename) ->
-%    {ok, Device} = file:open(Filename, [read]),
-%    try get_all_lines(Device)
-%        after file:close(Device)
-%    end.
-%
-%get_all_lines(Device) ->
-%    case io:get_line(Device, "") of
-%        eof -> [];
-%        Lube -> Line ++ get_all_lines(Device)
-%    end.
 
 % Save node name.
 name_holder_loop(Value) ->

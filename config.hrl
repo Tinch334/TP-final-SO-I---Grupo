@@ -10,10 +10,12 @@
 
 -define(HOSTNAME, "localhost").
 -define(SHELLNAME, "LAPNP2P-client").
--define(SHELL_COMMS, ["id_nodo", "listar_mis_archivos", "help", "salir", "DOWNLOAD_REQUEST <FileName> <OwnerNodeID>"]).
+-define(SHELL_COMMS, ["id_nodo", "listar_mis_archivos", "help", "salir", "DOWNLOAD_REQUEST <FileName> <OwnerNodeID>", "SEARCH_REQUEST <FIleName>"]).
 -define(TEST_NAMES, ["cuento.txt", "sdfsdf.txt", "crimen.txt", "potente.txt"]).
 -define(MAX_SINGLE_FILE_SIZE, 1024 * 4). % ajustar a 4MB
 -define(NODE_NAME_LENGTH, 4).
+
+-define(DOWLOAD_DATA_TIMEOUT, 10000).
 
 -define(SEARCH_REQUEST_TIMEOUT, 5000).
 -define(COLLECTOR_GET, collectorGet).

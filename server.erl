@@ -140,7 +140,7 @@ handle_request(Socket) ->
                             io:format("Archivo encontrado! ~n"),
                             send_found_file(Socket, FullPath, FileSize);
         
-                        #fileLookupError{reason = Reason} ->
+                        #fileLookupError{reason = _} ->
                             io:format("Archivo no encontrado: ~p ~n", [FileName]),
                             Packet = <<(?NOTFOUND_CODE):8>>,
                             gen_tcp:send(Socket, Packet),

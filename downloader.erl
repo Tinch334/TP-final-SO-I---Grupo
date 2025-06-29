@@ -11,20 +11,21 @@ download_file(FileName, Sock) ->
         ok = gen_tcp:send(Sock, Req),
 
         % esperar a recibir la respuesta del servidor, cuando recibo leo el primer byte
-        case gen_tcp:recv(Sock, 1) of
-        {error, closed} ->
+        case gen_tcp:recv(Sock, 1, ?DOWLOAD_DATA_TIMEOUT) of
+        {error, Reason} ->
             gen_tcp:close(Sock),
-            {error, closed};
+            {error, Reason};
 
         {ok, <<Code:8>>} when Code =/= ?OK_CODE ->
             gen_tcp:close(Sock),
             {error, not_found};
 
         {ok, <<?OK_CODE:8>>} ->
-            case gen_tcp:recv(Sock, + 4) of
-                {error, closed} ->
-                    {error, closed};
+            case gen_tcp:recv(Sock, + 4, ?DOWLOAD_DATA_TIMEOUT) of
+                {error, Reason} ->
+                    {error, Reason};
                 {ok, <<FileSize:32/big-unsigned-integer>>} ->
+
                     case FileSize < ?MAX_SINGLE_FILE_SIZE of
                         true  ->
                             case FileSize > 0 of
@@ -38,9 +39,9 @@ download_file(FileName, Sock) ->
                                     read_direct(Sock, FileSize, FileName)
                             end;
                         false ->
-                            case gen_tcp:recv(Sock, 4) of
-                                {error, closed} ->
-                                    {error, closed};
+                            case gen_tcp:recv(Sock, 4, ?DOWLOAD_DATA_TIMEOUT) of
+                                {error, Reason} ->
+                                    {error, Reason};
                                
                                 {ok, <<ChunkSize:32>>} -> % recibir el chunk size (no se usa, se podria prefijar con '_')
                                     io:format("Archivo grande (~p B), leer de a chunks de ~p B ~n", [FileSize, ChunkSize]),
@@ -52,10 +53,10 @@ download_file(FileName, Sock) ->
 
 % Metodo para leer el archivo completo de una, sin chunks
 read_direct(Sock, FileSize, Nom) ->
-    case gen_tcp:recv(Sock, FileSize) of
-        {error, closed} ->
+    case gen_tcp:recv(Sock, FileSize, ?DOWLOAD_DATA_TIMEOUT) of
+        {error, Reason} ->
             io:format("Conexion cerrada antes de recibir el archivo~n"),
-            {error, closed};
+            {error, Reason};
         {ok, BinData} -> 
             FullPath = filename:join(?DOWNLOADS_PATH, Nom),
             ok = file:write_file(FullPath, BinData),
@@ -84,10 +85,10 @@ read_chunks_loop(_Sock, _File, 0) ->
 read_chunks_loop(Sock, File, Rem) when Rem > 0 ->
     io:format("Quedan ~p bytes por recibir~n", [Rem]),
 
-    case gen_tcp:recv(Sock, 1 + 2 + 4) of
-        {error, closed} ->
+    case gen_tcp:recv(Sock, 1 + 2 + 4, ?DOWLOAD_DATA_TIMEOUT) of
+        {error, Reason} ->
             io:format("Conexion cerrada antes de recibir el chunk~n"),
-            {error, closed};
+            {error, Reason};
         {ok, <<ChunkCode:8, _ChunkInd:16, CurrChunkSize:32/big-unsigned-integer>>} ->
             handle_chunk(Sock, File, Rem, ChunkCode, CurrChunkSize)
     end.
@@ -96,10 +97,10 @@ read_chunks_loop(Sock, File, Rem) when Rem > 0 ->
 handle_chunk(Sock, File, Rem, ChunkCode, CurrChunkSize) ->
     case ChunkCode == ?CHUNK_CODE of
         true ->
-            case gen_tcp:recv(Sock, CurrChunkSize) of
-                {error, closed} ->
+            case gen_tcp:recv(Sock, CurrChunkSize, ?DOWLOAD_DATA_TIMEOUT) of
+                {error, Reason} ->
                     io:format("Conexion cerrada antes de recibir el chunk~n"),
-                    {error, closed};
+                    {error, Reason};
                 {ok, Bin} ->
                     io:format("Recibido chunk de ~p bytes~n", [CurrChunkSize]),
                     % obs la diferencia con write_file: que no requeria que el archivo estuviera abierto 
