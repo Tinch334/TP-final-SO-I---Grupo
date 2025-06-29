@@ -1,7 +1,8 @@
 -module(nodo).
--export([init/0, read_from_shared_folder/0, pprint/1, download_file/2, register/0, shell/0, comm_handler/1]).
+-export([init/0, read_from_shared_folder/0, pprint/1, shell/0, comm_handler/1, get_node_value/0, name_holder_loop/1, name_generator/1, add_node_to_registry/3]).
 -include("config.hrl").
--include("gen_header_tcp.hrl").
+-include("gen_header.hrl").
+
 % USAGE:
 % c(server).
 % server:server().
@@ -52,9 +53,6 @@ read_from_shared_folder() ->
             [] 
     end.
 
-% Metodo que registra al nodo en la red
-register() ->
-    io:format("Registrar al nodo en ~p ~n", [?REG_PATH]).
 
 % Inicia la shell interactiva para el cliente
 shell() ->
@@ -88,7 +86,7 @@ comm_handler(Input) ->
             io:format("me las piro vampiro~n"),
             halt();
         ["id_nodo"] ->
-            io:format("~p ~n", [self()]);
+            io:format("~p ~n", [get_node_value()]);
         ["listar_mis_archivos"] ->
             pprint(read_from_shared_folder());
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
@@ -100,7 +98,7 @@ comm_handler(Input) ->
                 %% si se pudo conectar, descargar el archivo
                 {ok, ConnSock} ->
                     io:format("Conectado a ~p~n", [ConnSock]),
-                    case download_file(FileName, ConnSock) of
+                    case downloader:download_file(FileName, ConnSock) of
                         {error, closed} ->
                             io:format("Conexion cerrada antes de completar la descarga~n");
                         {error, not_found} ->
@@ -118,131 +116,39 @@ comm_handler(Input) ->
             io:format("Comando desconocido. 'help' para ver los comandos disponibles y su uso. ~n")
     end.
 
-% Descarga un archivo del servidor, dado su nombre y el socket de la conexion
-download_file(FileName, Sock) ->
-        io:format("Descargando archivo ~s...~n", [FileName]),
-        Req = "DOWNLOAD_REQUEST " ++ FileName ++ "\r\n",
 
-        io:format("Enviando request: ~s~n", [Req]),
-        ok = gen_tcp:send(Sock, Req),
+% Add data about discovered nodes to the registry file.
+add_node_to_registry(Ip, Id, Port) ->
+    Line = io_lib:format("~s ~s ~s~n", [Ip, Id, Port]),
+    file:write_file(?REG_PATH, Line, [append]). % append it at the end of the file (no overwriting)
 
-        % esperar a recibir la respuesta del servidor, cuando recibo leo el primer byte
-        case gen_tcp:recv(Sock, 1) of
-        {error, closed} ->
-            gen_tcp:close(Sock),
-            {error, closed};
-
-        {ok, <<Code:8>>} when Code =/= ?OK_CODE ->
-            gen_tcp:close(Sock),
-            {error, not_found};
-
-        {ok, <<?OK_CODE:8>>} ->
-            case gen_tcp:recv(Sock, + 4) of
-                {error, closed} ->
-                    {error, closed};
-                {ok, <<FileSize:32/big-unsigned-integer>>} ->
-                    case FileSize < ?MAX_SINGLE_FILE_SIZE of
-                        true  ->
-                            case FileSize > 0 of
-                                false ->
-                                    io:format("El archivo ~p no tiene contenido, no se enviara~n", [FileName]),
-                                    % aca se manda notfound, aunque en realidad el error es otro
-                                    gen_tcp:send(Sock, <<(?NOTFOUND_CODE):8>>),
-                                    {error, empty_file};
-                                true ->
-                                    io:format("Archivo chico (~p B), leo de una~n", [FileSize]),
-                                    read_direct(Sock, FileSize, FileName)
-                            end;
-                        false ->
-                            case gen_tcp:recv(Sock, 4) of
-                                {error, closed} ->
-                                    {error, closed};
-                               
-                                {ok, <<ChunkSize:32>>} -> % recibir el chunk size (no se usa, se podria prefijar con '_')
-                                    io:format("Archivo grande (~p B), leer de a chunks de ~p B ~n", [FileSize, ChunkSize]),
-                                    read_chunked(Sock, FileSize, FileName)
-                            end
-                    end
-            end
-        end.
-
-% Metodo para leer el archivo completo de una, sin chunks
-read_direct(Sock, FileSize, Nom) ->
-    case gen_tcp:recv(Sock, FileSize) of
-        {error, closed} ->
-            io:format("Conexion cerrada antes de recibir el archivo~n"),
-            {error, closed};
-        {ok, BinData} -> 
-            FullPath = filename:join(?DOWNLOADS_PATH, Nom),
-            ok = file:write_file(FullPath, BinData),
-            io:format("Archivo guardado en: ~p~n", [FullPath]),
-            ok
-    end.
-    
-% Metodo para leer el archivo en partes, cuando el tamaño es mayor al umbral
-read_chunked(Sock, FileSize, Nom) ->
-    % ya lei los primeros 1 + 4 + 4 bytes, ahora lo que resta es del archivo
-    % Abrir archivo
-    FullPath = filename:join(?DOWNLOADS_PATH, Nom),
-    case file:open(FullPath, [write, binary]) of
-        {error, Reason} ->
-            io:format("Error al abrir el archivo ~p: ~p~n", [FullPath, Reason]),
-            {error, open_file_failed};
-        {ok, File} ->
-            read_chunks_loop(Sock, File, FileSize),
-            file:close(File),
-            gen_tcp:close(Sock),
-            ok
+% Save node name.
+name_holder_loop(Value) ->
+    receive
+        {get_value, Caller} ->
+            Caller ! {value, Value},
+            name_holder_loop(Value)
     end.
 
-read_chunks_loop(_Sock, _File, 0) ->
-    ok;
-read_chunks_loop(Sock, File, Rem) when Rem > 0 ->
-    io:format("Quedan ~p bytes por recibir~n", [Rem]),
-
-    case gen_tcp:recv(Sock, 1 + 2 + 4) of
-        {error, closed} ->
-            io:format("Conexion cerrada antes de recibir el chunk~n"),
-            {error, closed};
-        {ok, <<ChunkCode:8, _ChunkInd:16, CurrChunkSize:32/big-unsigned-integer>>} ->
-            handle_chunk(Sock, File, Rem, ChunkCode, CurrChunkSize)
+% Get node name via message passing.
+get_node_value() ->
+    name_holder ! {get_value, self()},
+    receive
+        {value, V} -> V
     end.
 
-
-handle_chunk(Sock, File, Rem, ChunkCode, CurrChunkSize) ->
-    case ChunkCode == ?CHUNK_CODE of
-        true ->
-            case gen_tcp:recv(Sock, CurrChunkSize) of
-                {error, closed} ->
-                    io:format("Conexion cerrada antes de recibir el chunk~n"),
-                    {error, closed};
-                {ok, Bin} ->
-                    io:format("Recibido chunk de ~p bytes~n", [CurrChunkSize]),
-                    % obs la diferencia con write_file: que no requeria que el archivo estuviera abierto 
-                    % (lo hacia manualmente, pero hacer esto recursivamente es costoso)
-                    ok = file:write(File, Bin),
-                    read_chunks_loop(Sock, File, Rem - CurrChunkSize)
-                end;
-        false ->
-            io:format("Error: código de chunk inválido: ~p~n", [ChunkCode]),
-            {error, invalid_chunk_code}
-    end.
-
+% Initializes the node, checks directories, reads shared files, and starts the UDP listener.
 init() ->
     io:format("Inicializa nodo ~n"),
     check_dirs(),
     _Shr = read_from_shared_folder(),
     _Discovered = [],
-    register(),
     io:format("Archivos compartidos: ~p ~n", [?TEST_NAMES]),
-    
-    Name = name_generator(?NODE_NAME_LENGTH),
-    io:format("Nombre del nodo: ~p ~n", [Name]),
 
-    %% TODO: registrar el nodo a traves de UDP
-
-    % probablemente convenga dejar el server registrado haciendole spawn con otro proceso
-    % server:server(),
+    udp_gen:gen_udp_init(),
 
     shell(),
+
+    % probablemente convenga dejar el server tcp registrado haciendole spawn con otro proceso
+    % server:server(),
     ok.

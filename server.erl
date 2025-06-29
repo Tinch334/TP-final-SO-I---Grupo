@@ -1,7 +1,6 @@
 -module(server).
 -export([server/0]).
 -include("config.hrl").
--include("gen_header_tcp.hrl").
 
 % USAGE:
 % c(server).
@@ -14,21 +13,17 @@
 file_lookup(FileName) ->
     FullSharedPath = filename:join(?SHARED_PATH, FileName),
     FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
-    case filelib:wildcard(FullSharedPath) of
-        [] ->
-            case filelib:wildcard(FullDownPath) of
-                [] ->
-                    #fileLookupError{reason = "File not found"};
-                Lst ->
-                    #fileLookupSuccess{files = generate_fileinfo(Lst)}
-            end;
-        Lst ->
-            #fileLookupSuccess{files = generate_fileinfo(Lst)}
+    case filelib:is_regular(FullSharedPath) of
+        true ->
+            {ok, FullSharedPath, filelib:file_size(FullSharedPath)};
+        false ->
+            case filelib:is_regular(FullDownPath) of
+                true ->
+                    {ok, FullDownPath, filelib:file_size(FullDownPath)};
+                false ->
+                    {error, not_found}
+            end
     end.
-
-generate_fileinfo([]) -> [];
-generate_fileinfo([File | FileLst]) ->
-    [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
 
 %% Inicia el servidor, escuchando en el puerto definido en config.hrl (espera activa)
 server() ->
@@ -155,14 +150,11 @@ handle_request(Socket) ->
                 ["DOWNLOAD_REQUEST", FileName] ->
                     io:format("Download req: ~p ~n", [FileName]),
                     case file_lookup(FileName) of
-                        #fileLookupSuccess{files = Files} ->
-                            FullPath = (lists:nth(1, Files))#fileInfo.name,
-                            FileSize = (lists:nth(1, Files))#fileInfo.size,
-
+                        {ok, FullPath, FileSize} ->
                             io:format("Archivo encontrado! ~n"),
                             send_found_file(Socket, FullPath, FileSize);
         
-                        #fileLookupError{reason = Reason} ->
+                        {error, not_found} ->
                             io:format("Archivo no encontrado: ~p ~n", [FileName]),
                             Packet = <<(?NOTFOUND_CODE):8>>,
                             gen_tcp:send(Socket, Packet),
@@ -172,12 +164,9 @@ handle_request(Socket) ->
                 ["QUIT"] ->
                     io:format("User quits~n"),
                     gen_tcp:close(Socket);
-                ["SEARCH_REQUEST", Id, FileName] ->
-                    file_gen:search_response(Socket, FileName);
                 _Otherwise ->
                     gen_tcp:send(Cli, "ERROR: Comando desconocido\r\n"),
                     handle_request(Socket)
-
             end;
         {tcp_closed, Cli} ->
             io:format("Cliente ~p desconectado.~n", [Cli]),
