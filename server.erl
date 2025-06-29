@@ -1,34 +1,12 @@
 -module(server).
 -export([server/0]).
 -include("config.hrl").
--include("gen_header_tcp.hrl").
 
 % USAGE:
 % c(server).
 % server:server().
 
 % nc localhost 12345 (o alternativamente compilar nodo y descargar desde la cli)
-
-%% buscar el archivo en la carpeta compartida, si esta retornar su ruta completa y su tamaño (en bytes)
-%% si no esta, retornar error
-file_lookup(FileName) ->
-    FullSharedPath = filename:join(?SHARED_PATH, FileName),
-    FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
-    case filelib:wildcard(FullSharedPath) of
-        [] ->
-            case filelib:wildcard(FullDownPath) of
-                [] ->
-                    #fileLookupError{reason = "File not found"};
-                Lst ->
-                    #fileLookupSuccess{files = generate_fileinfo(Lst)}
-            end;
-        Lst ->
-            #fileLookupSuccess{files = generate_fileinfo(Lst)}
-    end.
-
-generate_fileinfo([]) -> [];
-generate_fileinfo([File | FileLst]) ->
-    [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
 
 %% Inicia el servidor, escuchando en el puerto definido en config.hrl (espera activa)
 server() ->
@@ -154,7 +132,7 @@ handle_request(Socket) ->
             case Args of
                 ["DOWNLOAD_REQUEST", FileName] ->
                     io:format("Download req: ~p ~n", [FileName]),
-                    case file_lookup(FileName) of
+                    case utils:file_lookup(FileName) of
                         #fileLookupSuccess{files = Files} ->
                             FullPath = (lists:nth(1, Files))#fileInfo.name,
                             FileSize = (lists:nth(1, Files))#fileInfo.size,
@@ -172,12 +150,11 @@ handle_request(Socket) ->
                 ["QUIT"] ->
                     io:format("User quits~n"),
                     gen_tcp:close(Socket);
-                ["SEARCH_REQUEST", Id, FileName] ->
+                ["SEARCH_REQUEST", _, FileName] ->
                     file_gen:search_response(Socket, FileName);
                 _Otherwise ->
                     gen_tcp:send(Cli, "ERROR: Comando desconocido\r\n"),
                     handle_request(Socket)
-
             end;
         {tcp_closed, Cli} ->
             io:format("Cliente ~p desconectado.~n", [Cli]),
