@@ -90,7 +90,8 @@ comm_handler(Input) ->
         ["listar_mis_archivos"] ->
             pprint(read_from_shared_folder());
         ["SEARCH_REQUEST", FileName] ->
-            io:format("Archivos encontrados: ~w~n", [file_gen:search_request(FileName)]);
+            io:format("Archivos encontrados: ~n"),
+            lists:foreach(fun(E) -> io:format("ID: ~p - File: ~p - Size: ~p~n", [E#collectorElem.origId, E#collectorElem.filename, E#collectorElem.size]) end, file_gen:search_request(FileName));
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
             case utils:get_info_from_id(NodeIdStr) of

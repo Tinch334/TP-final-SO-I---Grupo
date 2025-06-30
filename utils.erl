@@ -38,7 +38,7 @@ get_info_from_id(Id) ->
 
 % Add data about discovered nodes to the registry file, if they aren't added already
 add_node_to_registry(Ip, Id, Port) ->
-    case (id_in_registry(Id)) of 
+    case (id_in_registry(Id) or (Id == nodo:get_node_value()) ) of 
         true -> ok;
         
         false ->
