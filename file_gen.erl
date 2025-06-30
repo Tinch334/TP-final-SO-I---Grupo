@@ -27,9 +27,9 @@ create_handlers(CId, Filename, [Node | NodeLst]) ->
     create_handlers(CId, Filename, NodeLst).
 
 search_handler(CId, Filename, Node) ->
-    case gen_tcp:connect(Node#nodeInfo.ip, Node#nodeInfo.port, [inet]) of
+    case gen_tcp:connect(Node#nodeInfo.ip, list_to_integer(Node#nodeInfo.port), [inet]) of
         {ok, Socket} ->
-            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", myid, " ", Filename])),
+            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", node:get_node_value() , " ", Filename])),
             search_handler_recv(CId),
             gen_tcp:close(Socket);
         {error, Reason} ->
@@ -54,6 +54,6 @@ search_response(Socket, FileName) ->
 
 send_file_info([], _) -> ok;
 send_file_info(Socket, [File | Files]) ->
-    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", myid, " ", File#fileInfo.name, " ", File#fileInfo.size]),
+    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", node:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size]),
     gen_tcp:send(Socket, FileMsg),
     send_file_info(Socket, Files).

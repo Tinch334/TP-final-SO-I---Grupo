@@ -9,7 +9,7 @@
 udp_discover_listener(Sock) ->
     case gen_udp:recv(Sock, 0) of
         {ok, {Ip, _Port, Str}} ->
-            io:format("Received UDP message: ~p from ~p~n", [Str, Ip]),
+            %io:format("Received UDP message: ~p from ~p~n", [Str, Ip]),
             handle_udp_req(Str, Ip, Sock);
         {error, Reason} ->
             io:format("Error al recibir UDP: ~p~n", [Reason]),
@@ -41,8 +41,8 @@ handle_udp_req(Str, IpFrom, Sock) ->
             udp_discover_listener(Sock);
 
         ["HELLO", IdStr, PortStr] ->
-            io:format("HELLO from ~p with id: ~p and port: ~p~n", [IpFrom, IdStr, PortStr]),
-            io:format("add ~p ~p ~p to register~n", [IpFrom, IdStr, PortStr]),
+            %io:format("HELLO from ~p with id: ~p and port: ~p~n", [IpFrom, IdStr, PortStr]),
+            %io:format("add ~p ~p ~p to register~n", [IpFrom, IdStr, PortStr]),
             utils:add_node_to_registry(IpFrom, IdStr, PortStr),
             udp_discover_listener(Sock);
 
@@ -108,7 +108,7 @@ hello_sender_init(Id, Sock) ->
     timer:apply_interval(?HELLO_INTERVAL, ?MODULE, hello_sender, [Id, Sock]).
     
 hello_sender(IdStr, Sock) ->
-    io:format("~nSEND HI ~n"),
+    %io:format("~nSEND HI ~n"),
     Msg = ["HELLO ", IdStr, " ", integer_to_list(?PORT), "\n"],
     gen_udp:send(Sock, {255, 255, 255, 255}, (?UDP_SOCKET), Msg).
 
