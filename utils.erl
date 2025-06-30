@@ -1,5 +1,5 @@
 -module(utils).
--export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1]).
+-export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 
 -include("config.hrl").
 
@@ -21,6 +21,10 @@ file_lookup(FileName) ->
 generate_fileinfo([]) -> [];
 generate_fileinfo([File | FileLst]) ->
     [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
+
+
+make_node_registry() ->
+    file:write_file(?NODE_FILE, <<>>).
 
 % check if node id is already in registry
 id_in_registry(Val) ->

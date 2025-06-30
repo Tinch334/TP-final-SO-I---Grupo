@@ -90,8 +90,11 @@ comm_handler(Input) ->
         ["listar_mis_archivos"] ->
             pprint(read_from_shared_folder());
         ["SEARCH_REQUEST", FileName] ->
-            io:format("Archivos encontrados: ~n"),
-            lists:foreach(fun(E) -> io:format("ID: ~p - File: ~p - Size: ~p~n", [E#collectorElem.origId, E#collectorElem.filename, E#collectorElem.size]) end, file_gen:search_request(FileName));
+            io:format("Buscando archivos... ~n"),
+            case file_gen:search_request(FileName) of
+                [] -> io:format("No se encontraron archivos~n");
+                Lst -> lists:foreach(fun(E) -> io:format("ID: ~p - File: ~p - Size: ~p~n", [E#collectorElem.origId, E#collectorElem.filename, E#collectorElem.size]) end, Lst)
+            end;
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
             case utils:get_info_from_id(NodeIdStr) of
@@ -146,6 +149,7 @@ get_node_value() ->
 % Initializes the node, checks directories, reads shared files, and starts the UDP listener.
 init() ->
     io:format("Inicializa nodo ~n"),
+    utils:make_node_registry(),
     check_dirs(),
     _Shr = read_from_shared_folder(),
     _Discovered = [],

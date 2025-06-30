@@ -17,7 +17,7 @@ search_request(Filename) ->
 collector(Lst) ->
     receive
         #collectorElem{origId = OID, filename = Filename, size = Size} ->
-            collector([#collectorElem{origId = OID, filename = Filename, size = Size} | Lst]);
+            collector([#collectorElem{origId = OID, filename = Filename, size = Size}] ++ Lst);
         {?COLLECTOR_GET, Id} -> Id ! {collectorRes, Lst} %We don't use a record for an internal one off.
     end.
 
@@ -29,19 +29,19 @@ create_handlers(CId, Filename, [Node | NodeLst]) ->
 search_handler(CId, Filename, Node) ->
     case gen_tcp:connect(Node#nodeInfo.ip, list_to_integer(Node#nodeInfo.port), [inet]) of
         {ok, Socket} ->
-            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", nodo:get_node_value() , " ", Filename])),
-            search_handler_recv(CId),
-            gen_tcp:close(Socket);
+            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", nodo:get_node_value() , " ", Filename, "\n"])),
+            search_handler_recv(CId);
         {error, Reason} ->
             io:format("An error occurred creating a TCP file request socket, with error: ~w~n", [Reason])
     end.
+    
 
 search_handler_recv(CId) ->
     receive
-        {tcp, Socket, Data} ->
+        {tcp, _, Data} ->
             SeparatedData = string:tokens(Data, " "),
             CId ! #collectorElem{origId = lists:nth(2, SeparatedData), filename = lists:nth(3, SeparatedData), size = lists:nth(4, SeparatedData)},
-            gen_tcp:close(Socket);
+            search_handler_recv(CId);
         {error, Reason} -> io:format("An error occurred reading from a TCP file request socket, with error: ~w~n", [Reason])
     end.
 
