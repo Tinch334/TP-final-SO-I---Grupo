@@ -1,5 +1,5 @@
 -module(utils).
--export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1]).
+-export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 
 -include("config.hrl").
 
@@ -22,14 +22,27 @@ generate_fileinfo([]) -> [];
 generate_fileinfo([File | FileLst]) ->
     [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
 
+
+make_node_registry() ->
+    file:write_file(?NODE_FILE, <<>>).
+
 % check if node id is already in registry
 id_in_registry(Val) ->
     L = get_nodes_from_registry(),
     lists:any(fun(#nodeInfo{ip=_, id=Id, port=_}) -> Id =:= Val end, L).
 
+get_info_from_id(Id) ->
+    case id_in_registry(Id) of
+        true ->
+            L = get_nodes_from_registry(),
+            lists:nth(1, lists:filter(fun(#nodeInfo{ip=_, id=IdRes, port=_}) -> Id == IdRes end, L));
+        false -> 
+            notFound
+    end.
+
 % Add data about discovered nodes to the registry file, if they aren't added already
 add_node_to_registry(Ip, Id, Port) ->
-    case (id_in_registry(Id)) of 
+    case (id_in_registry(Id) or (Id == nodo:get_node_value()) ) of 
         true -> ok;
         
         false ->

@@ -26,6 +26,7 @@ wait_connect(ListenSocket) ->
     wait_connect(ListenSocket).
 
 % Envia el archivo (cuyo tamaño supera al umbral) en partes
+% TODO: poner lo relacionado a descargas en downloader
 send_chunks(Sock, BinData, FileSize, CantChunk, N) ->
     io:fwrite("iteracion ~p de ~p chunks~n", [N, CantChunk]),
     case N == (CantChunk - 1) of
@@ -138,7 +139,7 @@ handle_request(Socket) ->
                             FileSize = (lists:nth(1, Files))#fileInfo.size,
 
                             io:format("Archivo encontrado! ~n"),
-                            send_found_file(Socket, FullPath, FileSize);
+                            spawn(fun() -> send_found_file(Socket, FullPath, FileSize) end);
         
                         #fileLookupError{reason = _} ->
                             io:format("Archivo no encontrado: ~p ~n", [FileName]),

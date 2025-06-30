@@ -17,7 +17,7 @@ search_request(Filename) ->
 collector(Lst) ->
     receive
         #collectorElem{origId = OID, filename = Filename, size = Size} ->
-            collector([#collectorElem{origId = OID, filename = Filename, size = Size} | Lst]);
+            collector([#collectorElem{origId = OID, filename = Filename, size = Size}] ++ Lst);
         {?COLLECTOR_GET, Id} -> Id ! {collectorRes, Lst} %We don't use a record for an internal one off.
     end.
 
@@ -27,31 +27,37 @@ create_handlers(CId, Filename, [Node | NodeLst]) ->
     create_handlers(CId, Filename, NodeLst).
 
 search_handler(CId, Filename, Node) ->
-    case gen_tcp:connect(Node#nodeInfo.ip, Node#nodeInfo.port, [inet]) of
+    case gen_tcp:connect(Node#nodeInfo.ip, list_to_integer(Node#nodeInfo.port), [inet]) of
         {ok, Socket} ->
-            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", myid, " ", Filename])),
-            search_handler_recv(CId),
-            gen_tcp:close(Socket);
+            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", nodo:get_node_value() , " ", Filename, "\n"])),
+            search_handler_recv(CId);
         {error, Reason} ->
             io:format("An error occurred creating a TCP file request socket, with error: ~w~n", [Reason])
     end.
+    
 
 search_handler_recv(CId) ->
     receive
-        {tcp, Socket, Data} ->
-            SeparatedData = string:tokens(Data, " "),
-            CId ! #collectorElem{origId = lists:nth(1, SeparatedData), filename = lists:nth(2, SeparatedData), size = lists:nth(3, SeparatedData)},
-            gen_tcp:close(Socket);
+        {tcp, _, Data} ->
+            SeparatedData = string:tokens(Data, "\n"),
+            lists:foreach(fun(Line) -> make_collector_elem(Line, CId) end, SeparatedData),
+            search_handler_recv(CId);
         {error, Reason} -> io:format("An error occurred reading from a TCP file request socket, with error: ~w~n", [Reason])
     end.
 
+make_collector_elem(Line, CId) ->
+    SeparatedMsg = string:tokens(Line, " "),
+    CId ! #collectorElem{origId = lists:nth(2, SeparatedMsg), filename = lists:nth(3, SeparatedMsg), size = lists:nth(4, SeparatedMsg)}.
 
-search_response(Socket, Filename) ->
-    FileList = utils:file_lookup(Filename),
-    send_file_info(Socket, FileList).
 
-send_file_info([], _) -> ok;
+search_response(Socket, FileName) ->
+    case utils:file_lookup(FileName) of
+        #fileLookupSuccess{files = FileLst} -> send_file_info(Socket, FileLst);
+        #fileLookupError{reason = _} -> ok
+    end.
+
+send_file_info(_, []) -> ok;
 send_file_info(Socket, [File | Files]) ->
-    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", myid, " ", File#fileInfo.name, " ", File#fileInfo.size]),
+    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", nodo:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size, "\n"]),
     gen_tcp:send(Socket, FileMsg),
     send_file_info(Socket, Files).
