@@ -93,29 +93,34 @@ comm_handler(Input) ->
             io:format("Archivos encontrados: ~w~n", [file_gen:search_request(FileName)]);
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
-            % despues de 5s, dar timeout
-            case gen_tcp:connect(NodeIdStr, ?PORT, [binary, {packet, 0}, {active, false}], 5000) of
-                
-                {error, Reason} ->
-                    io:format("Error al conectar con el nodo: ~p~n", [Reason]),
-                    error;
-                %% si se pudo conectar, descargar el archivo
-                {ok, ConnSock} ->
-                    io:format("Conectado a ~p~n", [ConnSock]),
-                    case downloader:download_file(FileName, ConnSock) of
-                        {error, closed} ->
-                            io:format("Conexion cerrada antes de completar la descarga~n");
-                        {error, not_found} ->
-                            io:format("Error: archivo no encontrado en el server~n");
-                        {error, empty_file} ->
-                            io:format("Error: el archivo ~s esta vacio~n", [FileName]);
+            case utils:get_info_from_id(NodeIdStr) of
+                notFound -> 
+                    io:format("Id desconocida ~n");
+                Data -> 
+                    % despues de 5s, dar timeout
+                    case gen_tcp:connect(Data#nodeInfo.ip, Data#nodeInfo.port, [binary, {packet, 0}, {active, false}], 5000) of
+                        
                         {error, Reason} ->
-                            io:format("Error: Ocurrio un error inesperado: ~w~n", [Reason]);
-                        ok ->
-                            gen_tcp:close(ConnSock),
-                            io:format("Archivo descargado! ~n")
-                    end
-            end;
+                            io:format("Error al conectar con el nodo: ~p~n", [Reason]),
+                            error;
+                        %% si se pudo conectar, descargar el archivo
+                        {ok, ConnSock} ->
+                            io:format("Conectado a ~p~n", [ConnSock]),
+                            case downloader:download_file(FileName, ConnSock) of
+                                {error, closed} ->
+                                    io:format("Conexion cerrada antes de completar la descarga~n");
+                                {error, not_found} ->
+                                    io:format("Error: archivo no encontrado en el server~n");
+                                {error, empty_file} ->
+                                    io:format("Error: el archivo ~s esta vacio~n", [FileName]);
+                                {error, Reason} ->
+                                    io:format("Error: Ocurrio un error inesperado: ~w~n", [Reason]);
+                                ok ->
+                                    gen_tcp:close(ConnSock),
+                                    io:format("Archivo descargado! ~n")
+                            end
+                        end
+                end;
         ["help"] ->
             pprint(?SHELL_COMMS);
         _ ->
