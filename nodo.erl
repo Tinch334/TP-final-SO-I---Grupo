@@ -98,8 +98,8 @@ comm_handler(Input) ->
                     io:format("Id desconocida ~n");
                 Data -> 
                     % despues de 5s, dar timeout
-                    case gen_tcp:connect(Data#nodeInfo.ip, Data#nodeInfo.port, [binary, {packet, 0}, {active, false}], 5000) of
-                        
+                    io:format("Intentando conectar al nodo: ~p con IP ~p~n", [Data#nodeInfo.id, Data#nodeInfo.ip]),
+                    case gen_tcp:connect(Data#nodeInfo.ip, list_to_integer(Data#nodeInfo.port), [binary, {packet, 0}, {active, false}], 5000) of    
                         {error, Reason} ->
                             io:format("Error al conectar con el nodo: ~p~n", [Reason]),
                             error;

@@ -46,9 +46,11 @@ search_handler_recv(CId) ->
     end.
 
 
-search_response(Socket, Filename) ->
-    FileList = utils:file_lookup(Filename),
-    send_file_info(Socket, FileList).
+search_response(Socket, FileName) ->
+    case utils:file_lookup(FileName) of
+        #fileLookupSuccess{files = FileLst} -> send_file_info(Socket, FileLst);
+        #fileLookupError{reason = _} -> ok
+    end.
 
 send_file_info([], _) -> ok;
 send_file_info(Socket, [File | Files]) ->
