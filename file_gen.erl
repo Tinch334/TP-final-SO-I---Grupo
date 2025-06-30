@@ -39,11 +39,15 @@ search_handler(CId, Filename, Node) ->
 search_handler_recv(CId) ->
     receive
         {tcp, _, Data} ->
-            SeparatedData = string:tokens(Data, " "),
-            CId ! #collectorElem{origId = lists:nth(2, SeparatedData), filename = lists:nth(3, SeparatedData), size = lists:nth(4, SeparatedData)},
+            SeparatedData = string:tokens(Data, "\n"),
+            lists:foreach(fun(Line) -> make_collector_elem(Line, CId) end, SeparatedData),
             search_handler_recv(CId);
         {error, Reason} -> io:format("An error occurred reading from a TCP file request socket, with error: ~w~n", [Reason])
     end.
+
+make_collector_elem(Line, CId) ->
+    SeparatedMsg = string:tokens(Line, " "),
+    CId ! #collectorElem{origId = lists:nth(2, SeparatedMsg), filename = lists:nth(3, SeparatedMsg), size = lists:nth(4, SeparatedMsg)}.
 
 
 search_response(Socket, FileName) ->
@@ -54,6 +58,6 @@ search_response(Socket, FileName) ->
 
 send_file_info(_, []) -> ok;
 send_file_info(Socket, [File | Files]) ->
-    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", nodo:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size]),
+    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", nodo:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size, "\n"]),
     gen_tcp:send(Socket, FileMsg),
     send_file_info(Socket, Files).
