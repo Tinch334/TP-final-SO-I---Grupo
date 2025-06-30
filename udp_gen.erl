@@ -28,6 +28,7 @@ get_id_value(Id) ->
 udp_discover_listener(Sock) ->
     case gen_udp:recv(Sock, 0) of
         {ok, {Ip, _Port, Str}} ->
+            io:format("Received UDP message: ~p from ~p~n", [Str, Ip]),
             handle_udp_req(Str, Ip, Sock);
         {error, Reason} ->
             io:format("Error al recibir UDP: ~p~n", [Reason]),
@@ -38,6 +39,7 @@ udp_discover_listener(Sock) ->
 handle_udp_req(Str, IpFrom, Sock) ->
     case string:tokens(Str, " \n") of
         ["NAME_REQUEST", IdStr] ->
+            io:format("NAME_REQUEST from ~p with id: ~p~n", [IpFrom, IdStr]),
             Id = list_to_integer(IdStr),
             NV = nodo:get_node_value(),
             % TODO: verificar si: El mismo id ya fue solicitado en una NAME_REQUEST enviada por este nodo anteriormente.
@@ -67,6 +69,7 @@ handle_udp_req(Str, IpFrom, Sock) ->
             udp_discover_listener(Sock);
 
         ["HELLO", IdStr, PortStr] ->
+            io:format("HELLO from ~p with id: ~p and port: ~p~n", [IpFrom, IdStr, PortStr]),
             io:format("add ~p ~p ~p to register~n", [IpFrom, IdStr, PortStr]),
             utils:add_node_to_registry(IpFrom, IdStr, PortStr),
             udp_discover_listener(Sock);
@@ -117,9 +120,14 @@ hello_sender_init(Sender, Id) ->
     timer:apply_interval(?HELLO_INTERVAL, ?MODULE, hello_sender, [Sender, Id]).
     
 hello_sender(Sender, IdStr) ->
-    %io:format("TEST ~n"),
+    io:format("~nSEND HI ~n"),
     Sender ! #udpSend{addr = {255, 255, 255, 255}, port = ?UDP_SOCKET, msg = string:join(["HELLO", IdStr, integer_to_list(?PORT),  "\n"], " ")}.
 
 % Sends a name request to the broadcast address with the specified ID.
 namereq_sender(Sender, IdStr) ->
     Sender ! #udpSend{addr = {255, 255, 255, 255}, port = ?UDP_SOCKET, msg = string:join(["NAME_REQUEST", IdStr, "\n"], " ")}.
+
+
+% no hace el broadcast
+% intenta conectarse y no hay timeout
+

@@ -93,7 +93,9 @@ comm_handler(Input) ->
             io:format("Archivos encontrados: ~w~n", [file_gen:search_request(FileName)]);
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
-            case gen_tcp:connect(NodeIdStr, ?PORT, [binary, {packet, 0}, {active, false}]) of
+            % despues de 5s, dar timeout
+            case gen_tcp:connect(NodeIdStr, ?PORT, [binary, {packet, 0}, {active, false}], 5000) of
+                
                 {error, Reason} ->
                     io:format("Error al conectar con el nodo: ~p~n", [Reason]),
                     error;
@@ -144,6 +146,9 @@ init() ->
     io:format("Archivos compartidos: ~p ~n", [?TEST_NAMES]),
 
     udp_gen:gen_udp_init(),
+
+    register(tcp_server, spawn(fun() -> server:server() end)),
+
 
     shell(),
 
