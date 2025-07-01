@@ -1,6 +1,6 @@
 ERLC = erlc
-ERL_FILES = downloader.erl nodo.erl server.erl udp_gen.erl file_gen.erl utils.erl
-HRL_FILES = config.hrl gen_header.hrl
+ERL_FILES = downloader.erl node.erl server.erl udp_gen.erl file_gen.erl utils.erl
+HRL_FILES = config.hrl
 BEAM_FILES = $(ERL_FILES:.erl=.beam)
 
 .PHONY: all clean
@@ -13,4 +13,4 @@ all: $(BEAM_FILES)
 clean:
 	rm -f *.beam
 
-# erl -noshell -s nodo init -s init stop
+# erl -noshell -s node init -s init stop

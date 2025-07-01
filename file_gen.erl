@@ -29,10 +29,10 @@ create_handlers(CId, Filename, [Node | NodeLst]) ->
 search_handler(CId, Filename, Node) ->
     case gen_tcp:connect(Node#nodeInfo.ip, list_to_integer(Node#nodeInfo.port), [inet]) of
         {ok, Socket} ->
-            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", nodo:get_node_value() , " ", Filename, "\n"])),
+            gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", node:get_node_value() , " ", Filename, "\n"])),
             search_handler_recv(CId);
         {error, Reason} ->
-            io:format("Ocurrio un error al conectarse a un nodo, debido a: ~w~n", [Reason])
+            io:format("Ocurrio un error al conectarse a un node, debido a: ~w~n", [Reason])
     end.
     
 
@@ -42,7 +42,7 @@ search_handler_recv(CId) ->
             SeparatedData = string:tokens(Data, "\n"),
             lists:foreach(fun(Line) -> make_collector_elem(Line, CId) end, SeparatedData),
             search_handler_recv(CId);
-        {error, Reason} -> io:format("Ocurrio un error al comunicarse con un nodo, debido a: ~w~n", [Reason])
+        {error, Reason} -> io:format("Ocurrio un error al comunicarse con un node, debido a: ~w~n", [Reason])
     end.
 
 make_collector_elem(Line, CId) ->
@@ -58,6 +58,6 @@ search_response(Socket, FileName) ->
 
 send_file_info(_, []) -> ok;
 send_file_info(Socket, [File | Files]) ->
-    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", nodo:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size, "\n"]),
+    FileMsg = lists:concat(["SEARCH_RESPONSE", " ", node:get_node_value(), " ", File#fileInfo.name, " ", File#fileInfo.size, "\n"]),
     gen_tcp:send(Socket, FileMsg),
     send_file_info(Socket, Files).

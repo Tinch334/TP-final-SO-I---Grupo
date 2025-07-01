@@ -21,8 +21,8 @@ handle_udp_req(Str, IpFrom, Sock) ->
         ["NAME_REQUEST", IdStr] ->
             io:format("NAME_REQUEST from ~p with id: ~p~n", [IpFrom, IdStr]),
             Id = IdStr,
-            NV = nodo:get_node_value(),
-            % TODO: verificar si: El mismo id ya fue solicitado en una NAME_REQUEST enviada por este nodo anteriormente.
+            NV = node:get_node_value(),
+            % TODO: verificar si: El mismo id ya fue solicitado en una NAME_REQUEST enviada por este node anteriormente.
             case Id =/= NV of
                 true ->
                     case utils:id_in_registry(Id) of
@@ -102,10 +102,10 @@ gen_udp_init() ->
         {ok, UDPConnSock} ->
             %io:format("UDP sucessfully created~n"),
             NodeName = choose_name(UDPConnSock, ?NAME_WAIT), % get unique name for the node
-            register(?NODE_NAME_HOLDER, spawn(fun() -> nodo:name_holder_loop(NodeName) end)), % launch the name holder process
+            register(?NODE_NAME_HOLDER, spawn(fun() -> node:name_holder_loop(NodeName) end)), % launch the name holder process
             register(?UDP_SENDER_ID, spawn(fun() -> udp_gen:hello_sender_init(NodeName, UDPConnSock), receive after infinity -> ok end  end)) , % periodically send HELLO
             register(?UDP_RECEIVER_ID, spawn(fun() -> udp_discover_listener(UDPConnSock) end)), % listen for incoming UDP requests
-            io:format("Nombre del nodo: ~p~n", [nodo:get_node_value()])
+            io:format("Nombre del node: ~p~n", [node:get_node_value()])
     end.
 
 
