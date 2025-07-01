@@ -4,16 +4,16 @@
 
 % Starts the server, listening to the defined port used in config.hrl (active wait)
 server() ->
-    io:fwrite("Hola soy ~p~n", [self()]),
+    % io:fwrite("Hola soy ~p~n", [self()]),
     {ok, ListenSocket} = gen_tcp:listen(?PORT, [{reuseaddr, true}, {active, true}]),
-    io:fwrite("Escuchando peticiones ~n"),
+    io:fwrite("Listening to requests... ~n"),
     wait_connect(ListenSocket).
 
 % Listening method, when new connections come it creates a child proccess to handle it.
 wait_connect(ListenSocket) ->
-    io:fwrite("~p se encarga de handlear a los clientes ~n", [self()]),
+    % io:fwrite("~p se encarga de handlear a los clientes ~n", [self()]),
     {ok, Socket} = gen_tcp:accept(ListenSocket),
-    io:fwrite("Conexion desde ~p aceptada ~n", [Socket]),
+    % io:fwrite("Conexion desde ~p aceptada ~n", [Socket]),
 
     % Transfers the "property" of the socket to the procces that is in charge of it. If not, this never recieves tcp messages
     gen_tcp:controlling_process(Socket, spawn (fun() -> handle_request(Socket) end)),
@@ -21,7 +21,7 @@ wait_connect(ListenSocket) ->
 
 % Handles incoming connections, gets the messages and answers queries
 handle_request(Socket) ->
-    io:fwrite("~p se encarga de handlear la conexion ~n", [self()]),
+    % io:fwrite("~p se encarga de handlear la conexion ~n", [self()]),
     receive
         {tcp, Cli, Data} ->
             Args = string:tokens(Data, " \n\r"),
