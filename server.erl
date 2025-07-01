@@ -28,7 +28,7 @@ handle_request(Socket) ->
             case Args of
                 ["DOWNLOAD_REQUEST", FileName] ->
                     %io:format("Download req: ~p ~n", [FileName]),
-                    case utils:file_lookup(FileName) of
+                    case utils:file_lookup_aux(FileName) of
                         #fileLookupSuccess{files = Files} ->
                             FullPath = (lists:nth(1, Files))#fileInfo.name,
                             FileSize = (lists:nth(1, Files))#fileInfo.size,

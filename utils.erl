@@ -1,9 +1,13 @@
+% subir esto
 -module(utils).
--export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, ip_checker/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
+-export([file_lookup/1, file_lookup_aux/1, add_node_to_registry/3, get_nodes_from_registry/0,get_clean_filename/1, make_node_record/1, ip_checker/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 -include("config.hrl").
 
-% File lookup function, given a name it searches the downloads and shared directories for it
-file_lookup(FileName) ->
+get_clean_filename(Path) ->
+    lists:nth(3, string:replace(Path, "compartida/", "", all)).
+
+
+file_lookup_aux(FileName) ->
     FullSharedPath = filename:join(?SHARED_PATH, FileName),
     FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
 
@@ -11,22 +15,52 @@ file_lookup(FileName) ->
     case filelib:wildcard(FullSharedPath) of
         [] ->
             % Now in the downloads directory
-            case filelib:wildcard(FullDownPath) of
-                [] ->
-                    #fileLookupError{reason = "File not found"};
-                Lst ->
+            %case filelib:wildcard(FullDownPath) of
+             %   [] ->
+            #fileLookupError{reason = "File not found"};
+         %   Lst ->
                     % Returning the file information of the found files
-                    #fileLookupSuccess{files = generate_fileinfo(Lst)}
-            end;
+             %       #fileLookupSuccess{files = generate_fileinfo(Lst)}
+            %end;
         Lst ->
             % Returning the file information of the found files
+            #fileLookupSuccess{files = generate_fileinfo_aux(Lst)}
+    end.
+
+% File lookup function, given a name it searches the downloads and shared directories for it
+file_lookup(FileName) ->
+    FullSharedPath = filename:join(?SHARED_PATH, FileName),
+   % FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
+
+    % Searching with wildcards in the shared directory
+    case filelib:wildcard(FullSharedPath) of
+        [] ->
+            % Now in the downloads directory
+            %case filelib:wildcard(FullDownPath) of
+             %   [] ->
+            #fileLookupError{reason = "File not found"};
+                %Lst ->
+                    % Returning the file information of the found files
+                 %   #fileLookupSuccess{files = generate_fileinfo(Lst)}
+            %end;
+        Lst ->
+            % Returning the file information of the found files
+            io:format("lst: ~p ~n", [Lst]),
+            %Ret = lists:map(fun (Tup) -> utils:get_clean_filename(Tup) end, Lst),
+            %io:format("ret: ~p ~n", [Ret]),
             #fileLookupSuccess{files = generate_fileinfo(Lst)}
+            %lists:map
     end.
 
 % It generates a list of fileInfo records
 generate_fileinfo([]) -> [];
 generate_fileinfo([File | FileLst]) ->
+    [#fileInfo{name = utils:get_clean_filename(File), size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
+
+generate_fileinfo_aux([]) -> [];
+generate_fileinfo_aux([File | FileLst]) ->
     [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
+
 
 % Makes the node_registry file for the record of nodes in the network
 make_node_registry() ->

@@ -174,6 +174,7 @@ send_chunks(Sock, BinData, FileSize, CantChunk, N) ->
 % We send the found file to the client, if the size is lower than MAX then we do it in a single go, otherwise it uses chunks
 send_found_file(Socket, FullPath, FileSize) ->
 
+    io:format("full path: ~p~n", [FullPath]),
     case file:read_file(FullPath) of
         {error, Reason} ->
             io:format("Error al leer el archivo: ~p~n", [Reason]),
