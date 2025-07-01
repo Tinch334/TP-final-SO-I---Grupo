@@ -1,6 +1,5 @@
 -module(udp_gen).
 -export([gen_udp_init/0, hello_sender_init/2, hello_sender/2, namereq_sender/2, udp_discover_listener/1, handle_udp_req/3, choose_name/2]).
-
 -include("config.hrl").
 
 % Listen for incoming UDP requests
@@ -32,7 +31,7 @@ handle_udp_req(Str, IpFrom, Sock) ->
                     end;
                 false ->
                     io:format("NAME_REQUEST with my own id!, invalidate.~n"),
-                    Sock ! #udpSend{addr = IpFrom, port = ?UDP_SOCKET, msg = string:join(["INVALID_NAME", IdStr, "\n"], " ")}
+                    gen_udp:send(Sock, IpFrom, (?UDP_SOCKET), string:join(["INVALID_NAME", IdStr, "\n"], " "))
             end,
             udp_discover_listener(Sock);
 

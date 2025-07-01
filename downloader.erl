@@ -1,6 +1,6 @@
 -module(downloader).
--include("config.hrl").
 -export([download_file/2, read_direct/3, read_chunked/3, read_chunks_loop/3, handle_chunk/5, send_chunks/5, send_found_file/3]).
+-include("config.hrl").
 
 % Downloads a file from the server, with the given name and socket of the conection
 download_file(FileName, Sock) ->

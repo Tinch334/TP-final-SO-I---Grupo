@@ -1,6 +1,5 @@
 -module(utils).
 -export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
-
 -include("config.hrl").
 
 % File lookup function, given a name it searches the downloads and shared directories for it
