@@ -1,8 +1,7 @@
-%Section 4.1, created as general library for common use.
+%TODO: Explain what each file does
 -module(udp_gen).
 -export([gen_udp_init/0, hello_sender_init/2, hello_sender/2, namereq_sender/2, udp_discover_listener/1, handle_udp_req/3, choose_name/2]).
 
--include("gen_header.hrl").
 -include("config.hrl").
 
 % listen for incoming UDP requests
@@ -53,15 +52,15 @@ handle_udp_req(Str, IpFrom, Sock) ->
 
 % follows the protocol to choose a unique name for the node. precond: an active UDP connection is open
 choose_name(Sock, Timeout) ->
-    NameChoice = nodo:name_generator(?NODE_NAME_LENGTH),
+    NameChoice = name_generator(?NODE_NAME_LENGTH),
     namereq_sender(NameChoice, Sock), % send name request
-    io:format("Sending name: ~p~n", [NameChoice]),
+    %io:format("Sending name: ~p~n", [NameChoice]),
     wait_for_invalid_name(Sock, NameChoice, Timeout).
 
 wait_for_invalid_name(Sock, NameChoice, RemainingTime) ->
     case (RemainingTime =< 0) of
         true -> 
-            io:format("Time's up. Name is accepted. ~p~n", [NameChoice]),
+            %io:format("Time's up. Name is accepted. ~p~n", [NameChoice]),
             NameChoice;
         false ->
             Start = erlang:monotonic_time(millisecond), % start counting time
@@ -69,7 +68,7 @@ wait_for_invalid_name(Sock, NameChoice, RemainingTime) ->
                 {ok, {_Addr, _Port, Data}} ->
                     case Data of
                         {"INVALID_NAME", _ID} ->
-                            io:format("Name ~p already in use!~n", [NameChoice]),
+                            %io:format("Name ~p already in use!~n", [NameChoice]),
                             timer:sleep(rand:uniform(8000) + 2000),  % wait a random time between 2s-10s and retry
                             choose_name(Sock, 10000); 
                         _Other ->
@@ -78,14 +77,22 @@ wait_for_invalid_name(Sock, NameChoice, RemainingTime) ->
                             wait_for_invalid_name(Sock, NameChoice, NewRemaining)
                     end;
                 {error, timeout} ->
-                    io:format("Timeout interno: aceptamos nombre ~p~n", [NameChoice]),
+                    %io:format("Timeout interno: aceptamos nombre ~p~n", [NameChoice]),
                     NameChoice;
                 {error, Reason} ->
-                    io:format("Error inesperado: ~p. Reintentando…~n", [Reason]),
+                    io:format("Error inesperado: ~p. Reintentando...~n", [Reason]),
                     choose_name(Sock, 10000)
             end
     end.
 
+% Genera un nombre aleatorio de tamaño Sz, con mayusculas, minusculas y digitos
+name_generator(Sz) ->
+    Alphabet = lists:append([lists:seq(65,90), lists:seq(48,57), lists:seq(97,122)]),
+    N = length(Alphabet),
+    lists:map(fun(_) -> lists:nth(rand:uniform(N), Alphabet)
+        end,
+        lists:seq(1, Sz)
+    ).
 
 % initializes the UDP socket and concurrently starts the hello sender and udp listener processes.
 gen_udp_init() ->
@@ -93,29 +100,26 @@ gen_udp_init() ->
         {error, Reason} -> 
             io:format("Error creating UDP socket: [~p] ~n", [Reason]);
         {ok, UDPConnSock} ->
-            io:format("UDP sucessfully created~n"),
-            NodeName = choose_name(UDPConnSock, 10000), % get unique name for the node
-            register(name_holder, spawn(fun() -> nodo:name_holder_loop(NodeName) end)), % launch the name holder process
+            %io:format("UDP sucessfully created~n"),
+            NodeName = choose_name(UDPConnSock, ?NAME_WAIT), % get unique name for the node
+            register(?NODE_NAME_HOLDER, spawn(fun() -> nodo:name_holder_loop(NodeName) end)), % launch the name holder process
             register(?UDP_SENDER_ID, spawn(fun() -> udp_gen:hello_sender_init(NodeName, UDPConnSock), receive after infinity -> ok end  end)) , % periodically send HELLO
             register(?UDP_RECEIVER_ID, spawn(fun() -> udp_discover_listener(UDPConnSock) end)), % listen for incoming UDP requests
-            io:format("Mi nombre es: ~p~n", [nodo:get_node_value()])
+            io:format("Nombre del nodo: ~p~n", [nodo:get_node_value()])
     end.
 
 
 %Periodically sends a HELLO message with the specified format using a UDP broadcast. Requires the TCP socket and the node ID.
 hello_sender_init(Id, Sock) ->
-    io:format("Starting hello sender with ID ~p~n", [Id]),
+    %io:format("Starting hello sender with ID ~p~n", [Id]),
     timer:apply_interval(?HELLO_INTERVAL, ?MODULE, hello_sender, [Id, Sock]).
     
 hello_sender(IdStr, Sock) ->
     %io:format("~nSEND HI ~n"),
     Msg = ["HELLO ", IdStr, " ", integer_to_list(?PORT), "\n"],
-    gen_udp:send(Sock, {255, 255, 255, 255}, (?UDP_SOCKET), Msg).
+    gen_udp:send(Sock, ?UDP_BROADCAST, (?UDP_SOCKET), Msg).
 
 % Sends a name request to the broadcast address with the specified ID.
 namereq_sender(IdStr, Sock) ->
     Msg = ["NAME_REQUEST ", IdStr, "\n"],
-    gen_udp:send(Sock, {255, 255, 255, 255}, (?UDP_SOCKET), Msg).
-
-% no hace el broadcast
-
+    gen_udp:send(Sock, ?UDP_BROADCAST, (?UDP_SOCKET), Msg).

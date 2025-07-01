@@ -1,22 +1,9 @@
+%TODO: Explain what each file does
 -module(nodo).
--export([init/0, read_from_shared_folder/0, pprint/1, shell/0, comm_handler/1, get_node_value/0, name_holder_loop/1, name_generator/1]).
+-export([read_from_shared_folder/0, comm_handler/1, get_node_value/0, name_holder_loop/1, init/0]).
 -include("config.hrl").
--include("gen_header.hrl").
-
-% USAGE:
-% c(server).
-% server:server().
 
 % nc localhost 12345 (o alternativamente compilar nodo y descargar desde la cli)
-
-% Genera un nombre aleatorio de tamaño Sz, con mayusculas, minusculas y digitos
-name_generator(Sz) ->
-    Alphabet = lists:append([lists:seq(65,90), lists:seq(48,57), lists:seq(97,122)]),
-    N = length(Alphabet),
-    lists:map(fun(_) -> lists:nth(rand:uniform(N), Alphabet)
-        end,
-        lists:seq(1, Sz)
-    ).
 
 % Imprime de manera indexada y tabulada los elementos de una lista
 pprint(List) ->
@@ -29,14 +16,14 @@ check_dirs() ->
         true ->
             io:format("La carpeta compartida esta presente ~n");
         false ->
-            file:make_dir("compartida"),
+            file:make_dir(?SHARED_PATH),
             io:format("Se creo la carpeta compartida~n")
     end,
     case filelib:is_dir(?DOWNLOADS_PATH) of
         true ->
             io:format("La carpeta descargas esta presente ~n");
         false ->
-            file:make_dir("descargas"),
+            file:make_dir(?DOWNLOADS_PATH),
             io:format("Se creo la carpeta descargas~n")
     end,
     ok.
@@ -53,41 +40,34 @@ read_from_shared_folder() ->
             [] 
     end.
 
-
-% Inicia la shell interactiva para el cliente
-shell() ->
-    io:format("linea de comandos~n"),
-    shell_loop(),
-    ok.
-
 % Funcion auxiliar usada por la shell interactiva
-shell_loop() ->
+shell() ->
     io:format("~s> ", [?SHELLNAME]),
     case io:get_line("") of
         eof ->
-            io:format("nos vimos~n");
+            io:format("Adios~n");
         {error, ErrorDescription} ->
             io:format("Error: ~p ~n", [ErrorDescription]),
-            shell_loop();
+            shell();
         Line ->
             % pasarle la linea, quitandole el enter
             if
                 length(Line) > 1 -> comm_handler(hd(string:tokens(Line, "\n")));
                 true -> ok
             end,
-            shell_loop()
+            shell()
     end.
 
 % Evaluar comandos
 comm_handler(Input) ->
     Args = string:tokens(Input, " "),
     case Args of
-        ["salir"] ->
+        ["EXIT"] ->
             io:format("Adios~n"),
             halt();
-        ["id_nodo"] ->
+        ["NODE_ID"] ->
             io:format("~p ~n", [get_node_value()]);
-        ["listar_mis_archivos"] ->
+        ["LIST_FILES"] ->
             pprint(read_from_shared_folder());
         ["SEARCH_REQUEST", FileName] ->
             io:format("Buscando archivos... ~n"),
@@ -98,7 +78,7 @@ comm_handler(Input) ->
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
             case utils:get_info_from_id(NodeIdStr) of
-                notFound -> 
+                ?NOT_FOUND -> 
                     io:format("Id desconocida ~n");
                 Data -> 
                     % despues de 5s, dar timeout
@@ -125,10 +105,15 @@ comm_handler(Input) ->
                             end
                         end
                 end;
-        ["help"] ->
+        ["LIST_NODES"] ->
+            case utils:get_nodes_from_registry() of
+                [] -> io:format("No se conocen otros nodos~n");
+                Lst -> lists:foreach(fun(E) -> io:format("-~p~n", [E#nodeInfo.id]) end, Lst)
+            end;
+        ["HELP"] ->
             pprint(?SHELL_COMMS);
         _ ->
-            io:format("Comando desconocido. 'help' para ver los comandos disponibles y su uso. ~n")
+            io:format("Comando desconocido. 'HELP' para ver los comandos disponibles y su uso. ~n")
     end.
 
 % Save node name.
@@ -141,19 +126,16 @@ name_holder_loop(Value) ->
 
 % Get node name via message passing.
 get_node_value() ->
-    name_holder ! {get_value, self()},
+    ?NODE_NAME_HOLDER ! {get_value, self()},
     receive
         {value, V} -> V
     end.
 
 % Initializes the node, checks directories, reads shared files, and starts the UDP listener.
 init() ->
-    io:format("Inicializa nodo ~n"),
+    %io:format("Inicializa nodo ~n"),
     utils:make_node_registry(),
     check_dirs(),
-    _Shr = read_from_shared_folder(),
-    _Discovered = [],
-    io:format("Archivos compartidos: ~p ~n", [?TEST_NAMES]),
 
     udp_gen:gen_udp_init(),
 
@@ -161,7 +143,4 @@ init() ->
 
 
     shell(),
-
-    % probablemente convenga dejar el server tcp registrado haciendole spawn con otro proceso
-    % server:server(),
     ok.

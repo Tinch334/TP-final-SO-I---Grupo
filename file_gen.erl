@@ -1,7 +1,7 @@
+%TODO: Explain what each file does
 -module(file_gen).
 -export([search_request/1, search_response/2, collector/1, search_handler/3]).
 
--include("gen_header.hrl").
 -include("config.hrl").
 
 %Section 4.2, created as general library for common use.
@@ -11,14 +11,14 @@ search_request(Filename) ->
     timer:sleep(?SEARCH_REQUEST_TIMEOUT + 500), %Wait for TCP timeout.
     CollectorID ! {?COLLECTOR_GET, self()},
     receive
-        {collectorRes, Lst} -> Lst
+        #collectorRes{lst = Lst} -> Lst
     end.
 
 collector(Lst) ->
     receive
         #collectorElem{origId = OID, filename = Filename, size = Size} ->
             collector([#collectorElem{origId = OID, filename = Filename, size = Size}] ++ Lst);
-        {?COLLECTOR_GET, Id} -> Id ! {collectorRes, Lst} %We don't use a record for an internal one off.
+        {?COLLECTOR_GET, Id} -> Id ! #collectorRes{lst = Lst} %We don't use a record for an internal one off.
     end.
 
 create_handlers(_, _, []) -> [];
@@ -32,7 +32,7 @@ search_handler(CId, Filename, Node) ->
             gen_tcp:send(Socket, lists:concat(["SEARCH_REQUEST", " ", nodo:get_node_value() , " ", Filename, "\n"])),
             search_handler_recv(CId);
         {error, Reason} ->
-            io:format("An error occurred creating a TCP file request socket, with error: ~w~n", [Reason])
+            io:format("Ocurrio un error al conectarse a un nodo, debido a: ~w~n", [Reason])
     end.
     
 
@@ -42,7 +42,7 @@ search_handler_recv(CId) ->
             SeparatedData = string:tokens(Data, "\n"),
             lists:foreach(fun(Line) -> make_collector_elem(Line, CId) end, SeparatedData),
             search_handler_recv(CId);
-        {error, Reason} -> io:format("An error occurred reading from a TCP file request socket, with error: ~w~n", [Reason])
+        {error, Reason} -> io:format("Ocurrio un error al comunicarse con un nodo, debido a: ~w~n", [Reason])
     end.
 
 make_collector_elem(Line, CId) ->

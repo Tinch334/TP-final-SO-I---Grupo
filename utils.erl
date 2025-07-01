@@ -1,3 +1,4 @@
+%TODO: Explain what each file does
 -module(utils).
 -export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 
@@ -37,7 +38,7 @@ get_info_from_id(Id) ->
             L = get_nodes_from_registry(),
             lists:nth(1, lists:filter(fun(#nodeInfo{ip=_, id=IdRes, port=_}) -> Id == IdRes end, L));
         false -> 
-            notFound
+            ?NOT_FOUND
     end.
 
 % Add data about discovered nodes to the registry file, if they aren't added already
