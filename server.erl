@@ -53,8 +53,8 @@ handle_request(Socket) ->
                     gen_tcp:send(Cli, "ERROR: Comando desconocido\r\n"),
                     handle_request(Socket)
             end;
-        {tcp_closed, Cli} ->
-            io:format("Cliente ~p desconectado.~n", [Cli]),
+        {tcp_closed, _Cli} ->
+            % io:format("Cliente ~p desconectado.~n", [Cli]),
             ok;
 
         _OtherMsg -> 

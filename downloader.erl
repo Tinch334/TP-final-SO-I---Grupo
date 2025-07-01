@@ -25,6 +25,7 @@ download_file(FileName, Sock) ->
 
         % We receive an okay code, which means that the file has been received
         {ok, <<?OK_CODE:8>>} ->
+            % quitar el "+4"
             case gen_tcp:recv(Sock, + 4, ?DOWLOAD_DATA_TIMEOUT) of
                 {error, Reason} ->
                     {error, Reason};
