@@ -48,11 +48,11 @@ add_node_to_registry(Ip, Id, Port) ->
         
         false ->
             Line = io_lib:format("~s,~s,~s~n", [inet:ntoa(Ip), Id, Port]),
-            file:write_file(?REG_PATH, Line, [append]) % append it at the end of the file (no overwriting)
+            file:write_file(?NODE_FILE, Line, [append]) % append it at the end of the file (no overwriting)
     end.
 
 get_nodes_from_registry() ->
-    case file:read_file(?REG_PATH) of
+    case file:read_file(?NODE_FILE) of
         {ok, Data} ->
             InfoList = lists:map(fun binary_to_list/1, binary:split(Data, [<<"\n">>], [global])),
             ValidLines = lists:filter(fun(Line) -> Line =/= "" end, InfoList), % remove empty lines

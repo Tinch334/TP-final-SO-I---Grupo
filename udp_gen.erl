@@ -34,8 +34,7 @@ handle_udp_req(Str, IpFrom, Sock) ->
                     end;
                 false ->
                     io:format("NAME_REQUEST with my own id!, invalidate.~n"),
-                    Sock ! #udpSend{addr = IpFrom, port = ?UDP_SOCKET, msg = string:join(["INVALID_NAME", IdStr, "\n"], " ")}
-                    %% enviar invalid
+                    gen_udp:send(Sock, IpFrom, (?UDP_SOCKET), string:join(["INVALID_NAME", IdStr, "\n"], " "))
             end,
             udp_discover_listener(Sock);
 
