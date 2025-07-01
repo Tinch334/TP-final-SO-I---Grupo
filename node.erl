@@ -1,17 +1,15 @@
-%TODO: Explain what each file does
 -module(node).
 -export([read_from_shared_folder/0, comm_handler/1, get_node_value/0, name_holder_loop/1, init/0]).
 -include("config.hrl").
 
-% nc localhost 12345 (o alternativamente compilar node y descargar desde la cli)
-
-% Imprime de manera indexada y tabulada los elementos de una lista
+% Prints the elements of a list in an indexed and tabulated manner
 pprint(List) ->
     IndList = lists:zip(lists:seq(1, length(List)), List),
     lists:foreach(fun({Ind, X}) -> io:format("~p. ~p ~n", [Ind, X]) end, IndList).
 
-% Crea las carpetas del node si no están creadas.
+% It creates the shared and downloads directories if thei're not there
 check_dirs() ->
+    % Checking for shared
     case filelib:is_dir(?SHARED_PATH) of
         true ->
             io:format("La carpeta compartida esta presente ~n");
@@ -19,6 +17,7 @@ check_dirs() ->
             file:make_dir(?SHARED_PATH),
             io:format("Se creo la carpeta compartida~n")
     end,
+    % Checking for downloads
     case filelib:is_dir(?DOWNLOADS_PATH) of
         true ->
             io:format("La carpeta descargas esta presente ~n");
@@ -28,19 +27,19 @@ check_dirs() ->
     end,
     ok.
 
-% Leer del directorio compartido, y retornar una lista con los archivos en él
+% Reading the shared folder and returning a list with it's files
 read_from_shared_folder() ->
     case file:list_dir(?SHARED_PATH) of
         {ok, RawFileNames} ->
-            % excluye por ejemplo links simbolicos, carpetas, sockets, pipes, etc
-            % el join es porque is_regular toma rutas, no nombres de archivo "sueltos"
+            % It excludes, for example, symbolic links, folders, sockets, pipes, etc
+            % The join is because is_regular receives paths, not only file names
             [F || F <- RawFileNames, filelib:is_regular(filename:join(?SHARED_PATH , F))];
         {error, Reason} ->
             io:format("Error leyendo directorio ~p: ~p ~n", [?SHARED_PATH], [Reason]),
             [] 
     end.
 
-% Funcion auxiliar usada por la shell interactiva
+% Auxiliary function for the nteractive shell
 shell() ->
     io:format("~s> ", [?SHELLNAME]),
     case io:get_line("") of
@@ -50,36 +49,44 @@ shell() ->
             io:format("Error: ~p ~n", [ErrorDescription]),
             shell();
         Line ->
-            % pasarle la linea, quitandole el enter
             if
+                % If receiving a line, we derive it to the comm_handler, without the \n
                 length(Line) > 1 -> comm_handler(hd(string:tokens(Line, "\n")));
                 true -> ok
             end,
             shell()
     end.
 
-% Evaluar comandos
+% Manages the effects of the commands in the shell
 comm_handler(Input) ->
     Args = string:tokens(Input, " "),
     case Args of
         ["EXIT"] ->
+            % We exit the shell
             io:format("Adios~n"),
             halt();
         ["NODE_ID"] ->
+            % Returns the ID of self
             io:format("~p ~n", [get_node_value()]);
         ["LIST_FILES"] ->
+            % Lists the files from the shared folder
             pprint(read_from_shared_folder());
         ["SEARCH_REQUEST", FileName] ->
+            % Sends a Search Request to the other nodes in the network, trying to find for files that 
+            % matches with the received name (with wildcards)
             io:format("Buscando archivos... ~n"),
             case file_gen:search_request(FileName) of
                 [] -> io:format("No se encontraron archivos~n");
                 Lst -> lists:foreach(fun(E) -> io:format("ID: ~p - File: ~p - Size: ~p~n", [E#collectorElem.origId, E#collectorElem.filename, E#collectorElem.size]) end, Lst)
             end;
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
+            % Sends a Download Request to the specified node with the ID given
             io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
             case utils:get_info_from_id(NodeIdStr) of
+                % If the node node isn't in the registry
                 ?NOT_FOUND -> 
                     io:format("Id desconocida ~n");
+                % If we receive the node information we try to connect and download
                 Data -> 
                     % despues de 5s, dar timeout
                     io:format("Intentando conectar al node: ~p con IP ~p~n", [Data#nodeInfo.id, Data#nodeInfo.ip]),
@@ -87,9 +94,11 @@ comm_handler(Input) ->
                         {error, Reason} ->
                             io:format("Error al conectar con el node: ~p~n", [Reason]),
                             error;
-                        %% si se pudo conectar, descargar el archivo
+                        % If connected, it tries to download
                         {ok, ConnSock} ->
                             io:format("Conectado a ~p~n", [ConnSock]),
+
+                            % Checking the result of the download
                             case downloader:download_file(FileName, ConnSock) of
                                 {error, closed} ->
                                     io:format("Conexion cerrada antes de completar la descarga~n");
@@ -106,17 +115,20 @@ comm_handler(Input) ->
                         end
                 end;
         ["LIST_NODES"] ->
+            % Lists the nodes from the registry
             case utils:get_nodes_from_registry() of
                 [] -> io:format("No se conocen otros nodes~n");
                 Lst -> lists:foreach(fun(E) -> io:format("-~p~n", [E#nodeInfo.id]) end, Lst)
             end;
         ["HELP"] ->
+            % Shows the available shell commands
             pprint(?SHELL_COMMS);
         _ ->
+            % Unknown command
             io:format("Comando desconocido. 'HELP' para ver los comandos disponibles y su uso. ~n")
     end.
 
-% Save node name.
+% Save node name as a getter
 name_holder_loop(Value) ->
     receive
         {get_value, Caller} ->
@@ -140,7 +152,6 @@ init() ->
     udp_gen:gen_udp_init(),
 
     register(tcp_server, spawn(fun() -> server:server() end)),
-
 
     shell(),
     ok.
