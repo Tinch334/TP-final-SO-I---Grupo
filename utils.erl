@@ -1,37 +1,44 @@
-%TODO: Explain what each file does
 -module(utils).
 -export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 
 -include("config.hrl").
 
+% File lookup function, given a name it searches the downloads and shared directories for it
 file_lookup(FileName) ->
     FullSharedPath = filename:join(?SHARED_PATH, FileName),
     FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
+
+    % Searching with wildcards in the shared directory
     case filelib:wildcard(FullSharedPath) of
         [] ->
+            % Now in the downloads directory
             case filelib:wildcard(FullDownPath) of
                 [] ->
                     #fileLookupError{reason = "File not found"};
                 Lst ->
+                    % Returning the file information of the found files
                     #fileLookupSuccess{files = generate_fileinfo(Lst)}
             end;
         Lst ->
+            % Returning the file information of the found files
             #fileLookupSuccess{files = generate_fileinfo(Lst)}
     end.
 
+% It generates a list of fileInfo records
 generate_fileinfo([]) -> [];
 generate_fileinfo([File | FileLst]) ->
     [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
 
-
+% Makes the node_registry file for the record of nodes in the network
 make_node_registry() ->
     file:write_file(?NODE_FILE, <<>>).
 
-% check if node id is already in registry
+% Check if node id is already in registry
 id_in_registry(Val) ->
     L = get_nodes_from_registry(),
     lists:any(fun(#nodeInfo{ip=_, id=Id, port=_}) -> Id =:= Val end, L).
 
+% Gets the info from a node in our node_registry if it's in it
 get_info_from_id(Id) ->
     case id_in_registry(Id) of
         true ->
@@ -51,6 +58,7 @@ add_node_to_registry(Ip, Id, Port) ->
             file:write_file(?NODE_FILE, Line, [append]) % append it at the end of the file (no overwriting)
     end.
 
+% Returns a list of node information records form the node_registry
 get_nodes_from_registry() ->
     case file:read_file(?NODE_FILE) of
         {ok, Data} ->
@@ -61,6 +69,7 @@ get_nodes_from_registry() ->
             []
     end.
 
+% Given the string of a line in the node_registry it returns a record of the node information
 make_node_record(NodeString) ->
     Split = string:tokens(NodeString, ","),
     #nodeInfo{ip = lists:nth(1, Split), id = lists:nth(2, Split), port = lists:nth(3, Split)}.
