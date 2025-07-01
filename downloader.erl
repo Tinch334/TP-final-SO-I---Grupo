@@ -187,7 +187,7 @@ send_found_file(Socket, FullPath, FileSize) ->
                         % The file is empty
                         false ->
                             io:format("El archivo ~p no tiene contenido, no se enviara~n", [FullPath]),
-                            % aca se manda notfound, aunque en realidad el error es otro
+                            % Here we use not found even though it is not the error
                             gen_tcp:send(Socket, <<(?NOTFOUND_CODE):8>>),
                             error;
                         true ->
