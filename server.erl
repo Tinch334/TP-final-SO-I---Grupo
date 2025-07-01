@@ -47,7 +47,7 @@ handle_request(Socket) ->
                     %io:format("User quits~n"),
                     gen_tcp:close(Socket);
                 ["SEARCH_REQUEST", _, FileName] ->
-                    file_gen:search_response(Socket, FileName);
+                    file_gen:search_response(Socket, FileName),
                     handle_request(Socket);
                 _Otherwise ->
                     gen_tcp:send(Cli, "ERROR: Comando desconocido\r\n"),
