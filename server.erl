@@ -28,7 +28,7 @@ handle_request(Socket) ->
             case Args of
                 ["DOWNLOAD_REQUEST", FileName] ->
                     %io:format("Download req: ~p ~n", [FileName]),
-                    case utils:file_lookup(FileName) of
+                    case utils:file_lookup_fullpath(FileName) of
                         #fileLookupSuccess{files = Files} ->
                             FullPath = (lists:nth(1, Files))#fileInfo.name,
                             FileSize = (lists:nth(1, Files))#fileInfo.size,
@@ -53,8 +53,8 @@ handle_request(Socket) ->
                     gen_tcp:send(Cli, "ERROR: Comando desconocido\r\n"),
                     handle_request(Socket)
             end;
-        {tcp_closed, Cli} ->
-            io:format("Cliente ~p desconectado.~n", [Cli]),
+        {tcp_closed, _Cli} ->
+            % io:format("Cliente ~p desconectado.~n", [Cli]),
             ok;
 
         _OtherMsg -> 

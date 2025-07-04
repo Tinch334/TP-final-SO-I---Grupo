@@ -31,7 +31,7 @@
 -define(NODE_FILE, "nodes_registry.txt").
 
 % List of available shell commands
--define(SHELL_COMMS, ["EXIT", "NODE_ID", "LIST_FILES", "SEARCH_REQUEST <Filename>", "DOWNLOAD_REQUEST <Filename> <OwnerNodeID>", "LIST_NODES"]).
+-define(SHELL_COMMS, ["EXIT", "NODE_ID", "LIST_FILES", "SEARCH_REQUEST <Filename>", "DOWNLOAD_REQUEST <Filename> <OwnerNodeID>", "LIST_NODES", "REFRESH", "IP_MAP <IpAddr>"]).
 
 % Macros used to identify registered processes
 -define(NOT_FOUND, notFound). % Not found atomic used when get_info_from_id() doesn't find the ID in the registry

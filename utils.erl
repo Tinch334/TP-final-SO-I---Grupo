@@ -1,31 +1,49 @@
+% subir esto
 -module(utils).
--export([file_lookup/1, add_node_to_registry/3, get_nodes_from_registry/0, make_node_record/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
+-export([file_lookup/1, file_lookup_fullpath/1, add_node_to_registry/3, get_nodes_from_registry/0,get_clean_filename/1, make_node_record/1, ip_checker/1, id_in_registry/1, get_info_from_id/1, make_node_registry/0]).
 -include("config.hrl").
 
-% File lookup function, given a name it searches the downloads and shared directories for it
-file_lookup(FileName) ->
+% removes the shared folder name from path
+get_clean_filename(Path) ->
+    lists:nth(3, string:replace(Path, "compartida/", "", all)).
+
+file_lookup_fullpath(FileName) ->
     FullSharedPath = filename:join(?SHARED_PATH, FileName),
-    FullDownPath = filename:join(?DOWNLOADS_PATH, FileName),
 
     % Searching with wildcards in the shared directory
     case filelib:wildcard(FullSharedPath) of
         [] ->
-            % Now in the downloads directory
-            case filelib:wildcard(FullDownPath) of
-                [] ->
-                    #fileLookupError{reason = "File not found"};
-                Lst ->
-                    % Returning the file information of the found files
-                    #fileLookupSuccess{files = generate_fileinfo(Lst)}
-            end;
+            #fileLookupError{reason = "File not found"};
+
         Lst ->
             % Returning the file information of the found files
+            #fileLookupSuccess{files = generate_fileinfo_fullpath(Lst)}
+    end.
+
+% File lookup function, given a name it searches the downloads and shared directories for it
+file_lookup(FileName) ->
+    FullSharedPath = filename:join(?SHARED_PATH, FileName),
+
+    % Searching with wildcards in the shared directory
+    case filelib:wildcard(FullSharedPath) of
+        [] ->
+
+            #fileLookupError{reason = "File not found"};
+
+        Lst ->
+            % Returning the file information of the found files
+            io:format("lst: ~p ~n", [Lst]),
             #fileLookupSuccess{files = generate_fileinfo(Lst)}
     end.
 
 % It generates a list of fileInfo records
 generate_fileinfo([]) -> [];
 generate_fileinfo([File | FileLst]) ->
+    [#fileInfo{name = utils:get_clean_filename(File), size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
+
+% Does the same as funcion above, but using full path
+generate_fileinfo_fullpath([]) -> [];
+generate_fileinfo_fullpath([File | FileLst]) ->
     [#fileInfo{name = File, size = filelib:file_size(File)} | generate_fileinfo(FileLst)].
 
 % Makes the node_registry file for the record of nodes in the network
@@ -72,3 +90,21 @@ get_nodes_from_registry() ->
 make_node_record(NodeString) ->
     Split = string:tokens(NodeString, ","),
     #nodeInfo{ip = lists:nth(1, Split), id = lists:nth(2, Split), port = lists:nth(3, Split)}.
+
+
+ip_in_registry(IpVal) ->
+    L = get_nodes_from_registry(),
+    lists:any(fun(#nodeInfo{ip=Ip, id=_, port=_}) -> Ip =:= IpVal end, L).
+
+
+ip_checker(Ip) ->
+    io:format("Check nodes linked with ip: ~p ~n", [Ip]),
+    case ip_in_registry(Ip) of
+        true ->
+            L = get_nodes_from_registry(),
+            Filtered = lists:filter(fun(#nodeInfo{ip=IpRes, id=_, port=_}) -> Ip == IpRes end, L),
+            Res = lists:map(fun(Tup) -> element(3, Tup) end, Filtered),
+            io:format("~p ~n", [Res]);
+        false -> 
+            io:format("No encontro ningun peer vinculado a esa IP ~n")
+    end.

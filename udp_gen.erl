@@ -17,7 +17,7 @@ udp_discover_listener(Sock) ->
 handle_udp_req(Str, IpFrom, Sock) ->
     case string:tokens(Str, " \n") of
         ["NAME_REQUEST", IdStr] ->
-            io:format("NAME_REQUEST from ~p with id: ~p~n", [IpFrom, IdStr]),
+            % io:format("NAME_REQUEST from ~p with id: ~p~n", [IpFrom, IdStr]),
             Id = IdStr,
             NV = node:get_node_value(),
             case Id =/= NV of % Checks if the new node has my name
@@ -27,7 +27,8 @@ handle_udp_req(Str, IpFrom, Sock) ->
                             io:format("NAME_REQUEST with previously used id!, invalidate.~n"),
                             gen_udp:send(Sock, IpFrom, (?UDP_SOCKET), string:join(["INVALID_NAME", IdStr, "\n"], " "));
                         false ->
-                            io:format("NAME_REQUEST from another node: ~p~n", [Id])
+                            ok
+                            % io:format("NAME_REQUEST from another node: ~p~n", [Id])
                     end;
                 false ->
                     io:format("NAME_REQUEST with my own id!, invalidate.~n"),

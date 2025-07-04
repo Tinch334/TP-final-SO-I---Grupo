@@ -52,7 +52,15 @@ search_handler_recv(CId) ->
 % in the collectorElem record
 make_collector_elem(Line, CId) ->
     SeparatedMsg = string:tokens(Line, " "),
-    CId ! #collectorElem{origId = lists:nth(2, SeparatedMsg), filename = lists:nth(3, SeparatedMsg), size = lists:nth(4, SeparatedMsg)}.
+    Len = length(SeparatedMsg),
+    %% io:format("len: ~p ~n", [Len]),
+    %% parsing err
+    case (Len >= 4) of
+        true ->
+            CId ! #collectorElem{origId = lists:nth(2, SeparatedMsg), filename = lists:nth(3, SeparatedMsg), size = lists:nth(4, SeparatedMsg)};
+        false -> 
+            ok
+    end.
 
 
 

@@ -81,7 +81,7 @@ comm_handler(Input) ->
             end;
         ["DOWNLOAD_REQUEST", FileName, NodeIdStr] ->
             % Sends a Download Request to the specified node with the ID given
-            io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
+            % io:format("Intentando conectarse a ~p para descargar ~s...~n", [NodeIdStr, FileName]),
             case utils:get_info_from_id(NodeIdStr) of
                 % If the node node isn't in the registry
                 ?NOT_FOUND -> 
@@ -89,7 +89,7 @@ comm_handler(Input) ->
                 % If we receive the node information we try to connect and download
                 Data -> 
                     % despues de 5s, dar timeout
-                    io:format("Intentando conectar al node: ~p con IP ~p~n", [Data#nodeInfo.id, Data#nodeInfo.ip]),
+                    io:format("Intentando conectar al node: ~p con IP ~p y puerto ~p ~n", [Data#nodeInfo.id, Data#nodeInfo.ip, Data#nodeInfo.port]),
                     case gen_tcp:connect(Data#nodeInfo.ip, list_to_integer(Data#nodeInfo.port), [binary, {packet, 0}, {active, false}], 5000) of    
                         {error, Reason} ->
                             io:format("Error al conectar con el node: ~p~n", [Reason]),
@@ -116,13 +116,23 @@ comm_handler(Input) ->
                 end;
         ["LIST_NODES"] ->
             % Lists the nodes from the registry
-            case utils:get_nodes_from_registry() of
+            % io:format("~p ~n", [utils:get_nodes_from_registry()]);
+                
+            L = utils:get_nodes_from_registry(),
+            case L of
                 [] -> io:format("No se conocen otros nodes~n");
-                Lst -> lists:foreach(fun(E) -> io:format("-~p~n", [E#nodeInfo.id]) end, Lst)
+                Lst -> 
+                    lists:foreach(fun(E) -> io:format("-~p, ~p, ~p ~n", [E#nodeInfo.id, E#nodeInfo.ip, E#nodeInfo.port]) end, Lst),
+                    io:format("Peers: ~p ~n", [length(Lst)])
             end;
         ["HELP"] ->
             % Shows the available shell commands
             pprint(?SHELL_COMMS);
+        ["REFRESH"] ->
+            utils:make_node_registry();
+        ["IP_MAP", Ip] ->
+            utils:ip_checker(Ip); 
+
         _ ->
             % Unknown command
             io:format("Comando desconocido. 'HELP' para ver los comandos disponibles y su uso. ~n")
